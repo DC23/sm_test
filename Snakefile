@@ -29,8 +29,6 @@ TRIM_PATH = config["trim-path"]
 #------------------------------------------------------------------------
 
 # TODO - remove these
-csiro_id = "ley015"
-temp_loc = expand("/scratch1/{csiro_id}", csiro_id = csiro_id)
 IDS = [1,2]
 PUs = ['P','U']
 
