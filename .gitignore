@@ -4,3 +4,4 @@ dag.svg
 reports/
 test_data/
 *.log
+config.yml
