@@ -11,6 +11,24 @@
 # snakemake -n --dag | dot -Tsvg > dag.svg
 
 
+#------------------------------------------------------------------------
+# Load the configuration
+configfile: "config.yml"
+
+def config_with_default(key, default):
+    try:
+        return config[key]
+    except KeyError:
+        return default
+
+
+TMP_DIR = config["temp-dir"]
+MAX_THREADS = int(config_with_default("max-threads", "1"))
+TRIM_PATH = config["trim-path"]
+
+#------------------------------------------------------------------------
+
+# TODO - remove these
 csiro_id = "ley015"
 temp_loc = expand("/scratch1/{csiro_id}", csiro_id = csiro_id)
 IDS = [1,2]
@@ -21,8 +39,15 @@ sample = ["CA73YANXX_8_161220_BPO--000_Other_TAAGGCGA-CTCTCTAT_R_161128_SHADIL_L
 
 #samples = {f[:-11] for f in os.listdir(".") if f.endswith("fastq.gz")}
 
-MAX_THREADS = 32
 trim_path = '/apps/trimmomatic/0.38/trimmomatic-0.38.jar'
+#------------------------------------------------------------------------
+
+rule test:
+    run:
+        print("TMP_DIR: {0}".format(TMP_DIR))
+        print("MAX_THREADS: {0}".format(MAX_THREADS))
+
+#------------------------------------------------------------------------
 
 rule all:
     input:
