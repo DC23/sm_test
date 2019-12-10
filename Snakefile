@@ -8,7 +8,7 @@
 
 # To create a DAG file in dryrun:
 # module load miniconda3/4.3.24
-# snakemake -n --dag | dot -Tsvg > dag.svg 
+# snakemake -n --dag | dot -Tsvg > dag.svg
 
 
 csiro_id = "ley015"
@@ -36,7 +36,7 @@ rule all:
 #    shell:
 #       """
 #       rm -rf blahblahblah
-#       """     
+#       """
 
 
 rule fastqc_raw:
@@ -53,7 +53,7 @@ rule fastqc_raw:
         mkdir -p {temp_loc}/reports/raw_reads/
         fastqc -t {threads} {input.fastq} -o {temp_loc}/reports/raw_reads/qc/
         """
- 
+
 rule trim:
     input:
         forward = "test_data/{sample}_R1.fastq.gz",
@@ -63,12 +63,12 @@ rule trim:
         forward_unpaired = "{temp_loc}/reports/trimmed_reads/{sample}_1U.fq.gz",
         reverse_paired = "{temp_loc}/reports/trimmed_reads/{sample}_2P.fq.gz",
         reverse_unpaired = "{temp_loc}/reports/trimmed_reads/{sample}_2U.fq.gz",
-        trimlog = "{temp_loc}/reports/trimmed_reads/{sample}.log",        
+        trimlog = "{temp_loc}/reports/trimmed_reads/{sample}.log",
     threads:
         MAX_THREADS
     shell:
         """
-        module load trimmomatic/0.38               
+        module load trimmomatic/0.38
         java -jar {trim_path} PE -phred33 \
         {input.forward} {input.reverse} \
         {output.forward_paired} {output.forward_unpaired} {output.reverse_paired} {output.reverse_unpaired} \
