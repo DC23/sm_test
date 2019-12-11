@@ -21,14 +21,50 @@ def config_with_default(key, default):
     except KeyError:
         return default
 
-
+# Location of temporary files
 TMP_DIR = config["temp-dir"]
+
+# Input directory for fastq files
+FASTQ_DIR = config["fastq-dir"]
+
+# Max number of threads.
+# TODO: is this needed?
 MAX_THREADS = int(config_with_default("max-threads", "1"))
+
+# Path to the trimmomatic jar
+# TODO: Is this required? Can't we just load the trimmomatic module?
 TRIM_PATH = config["trim-path"]
+
+FASTQC_DIR = "{0}reports/raw_reads/qc/".format(TMP_DIR)
+
+#------------------------------------------------------------------------
+# Build all the single filename wildcard patterns so we can use them multiple times
+# without duplication.
+# Note that we need to escape the Snakemake wildcards with double curly braces
+# so that they pass through the string formatting.
+
+FASTQ_FILE = "{0}{{sample}}_R{{id}}.fastq.gz".format(FASTQ_DIR)
+RAW_FASTQC_ZIP = "{0}{{sample}}_R{{id}}_fastqc.zip".format(FASTQC_DIR)
+RAW_FASTQC_HTML ="{0}{{sample}}_R{{id}}_fastqc.html".format(FASTQC_DIR)
+
+#------------------------------------------------------------------------
+# Build the lists of all expected output files.
+# These are written to globals to avoid duplication when the lists are used in
+# multiple rules.
+samples, ids = glob_wildcards(FASTQ_FILE)
+# convert to sets to remove duplication
+samples = set(samples)
+ids = set(ids)
+
+ALL_RAW_FASTQC_ZIP = expand(RAW_FASTQC_ZIP, sample=samples, id=ids)
+ALL_RAW_FASTQC_HTML = expand(RAW_FASTQC_HTML, sample=samples, id=ids)
+
 
 #------------------------------------------------------------------------
 
 # TODO - remove these
+csiro_id = "ley015"
+temp_loc = expand("/scratch1/{csiro_id}", csiro_id = csiro_id)
 IDS = [1,2]
 PUs = ['P','U']
 
@@ -44,38 +80,61 @@ rule test:
     run:
         print("TMP_DIR: {0}".format(TMP_DIR))
         print("MAX_THREADS: {0}".format(MAX_THREADS))
+        print("FASTQ_DIR:", FASTQ_DIR)
+        print("FASTQ_FILE: ", FASTQ_FILE)
+        print("RAW_FASTQC_ZIP: ", RAW_FASTQC_ZIP)
+        print("RAW_FASTQC_HTML: ", RAW_FASTQC_HTML)
+        print(samples)
+        print(ids)
+        print(ALL_RAW_FASTQC_ZIP)
+        print(ALL_RAW_FASTQC_HTML)
 
 #------------------------------------------------------------------------
 
 rule all:
     input:
-        expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.zip", sample = sample, temp_loc = temp_loc, id = IDS),
-        expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.html", sample = sample, temp_loc = temp_loc, id = IDS),
-        expand("{temp_loc}/reports/trimmed_reads/qc/{sample}_{id}{pu}_fastqc.zip", temp_loc = temp_loc, sample = sample, id = IDS, pu = PUs),
-        expand("{temp_loc}/reports/trimmed_reads/qc/{sample}_{id}{pu}_fastqc.html", temp_loc = temp_loc, sample = sample, id = IDS, pu = PUs),
-        expand("{temp_loc}/reports/trimmed_reads/RSEM_trinity/{sample}/Trinity.fasta", temp_loc = temp_loc, sample = sample),
+        ALL_RAW_FASTQC_HTML,
+        ALL_RAW_FASTQC_ZIP
+        #expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.zip", sample = sample, temp_loc = temp_loc, id = IDS),
+        #expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.html", sample = sample, temp_loc = temp_loc, id = IDS),
+        #expand("{temp_loc}/reports/trimmed_reads/qc/{sample}_{id}{pu}_fastqc.zip", temp_loc = temp_loc, sample = sample, id = IDS, pu = PUs),
+        #expand("{temp_loc}/reports/trimmed_reads/qc/{sample}_{id}{pu}_fastqc.html", temp_loc = temp_loc, sample = sample, id = IDS, pu = PUs),
+        #expand("{temp_loc}/reports/trimmed_reads/RSEM_trinity/{sample}/Trinity.fasta", temp_loc = temp_loc, sample = sample),
 
-# rule clean:
-#    shell:
-#       """
-#       rm -rf blahblahblah
-#       """
+rule clean:
+    shell:
+        """
+        rm {ALL_RAW_FASTQC_HTML}
+        rm {ALL_RAW_FASTQC_ZIP}
+        """
 
-
-rule fastqc_raw:
-    input:
-        fastq = expand("test_data/{sample}_R{id}.fastq.gz", sample = sample, id = IDS),
+# A single input file, with wildcards for sample and ID
+rule fastqc_raw_single:
+    input: FASTQ_FILE
     output:
-        zip1 = expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.zip", sample = sample, temp_loc = temp_loc, id = IDS),
-        html1 = expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.html", sample = sample, temp_loc = temp_loc, id = IDS),
-    threads:
-        MAX_THREADS
+        zip=RAW_FASTQC_ZIP,
+        html=RAW_FASTQC_HTML
     shell:
         """
         module load fastqc/0.11.8
-        mkdir -p {temp_loc}/reports/raw_reads/
-        fastqc -t {threads} {input.fastq} -o {temp_loc}/reports/raw_reads/qc/
+        fastqc -t {threads} {input} -o {FASTQC_DIR}
         """
+
+
+#rule fastqc_raw:
+    #input:
+        #fastq = expand("test_data/{sample}_R{id}.fastq.gz", sample = sample, id = IDS),
+    #output:
+        #zip1 = expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.zip", sample = sample, temp_loc = temp_loc, id = IDS),
+        #html1 = expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.html", sample = sample, temp_loc = temp_loc, id = IDS),
+    #threads:
+        #MAX_THREADS
+    #shell:
+        #"""
+        #module load fastqc/0.11.8
+        #mkdir -p {temp_loc}/reports/raw_reads/
+        #fastqc -t {threads} {input.fastq} -o {temp_loc}/reports/raw_reads/qc/
+        #"""
 
 rule trim:
     input:
