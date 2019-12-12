@@ -43,7 +43,6 @@ TRIM_PATH = config["trim-path"]
 # Note that we need to escape the Snakemake wildcards with double curly braces
 # so that they pass through the string formatting.
 
-# TODO: Can I ditch the use of separate sample and id wildcards? They only appear to be used together anyway.
 FASTQ_FILE = "{0}{{sample}}_R{{id}}.fastq.gz".format(FASTQ_DIR)
 RAW_FASTQC_ZIP = "{0}{{sample}}_R{{id}}_fastqc.zip".format(FASTQC_DIR)
 RAW_FASTQC_HTML = "{0}{{sample}}_R{{id}}_fastqc.html".format(FASTQC_DIR)
@@ -62,6 +61,7 @@ TRIMLOG = "{0}{{sample}}.log".format(TRIMMED_READS_DIR)
 # Build the lists of all expected output files.
 # These are written to globals to avoid duplication when the lists are used in
 # multiple rules.
+
 samples, ids = glob_wildcards(FASTQ_FILE)
 # convert to sets to remove duplication
 samples = set(samples)
@@ -143,11 +143,11 @@ rule trim:
         forward=FASTQ_FORWARD_FILE,
         reverse=FASTQ_REVERSE_FILE
     output:
-        forward_paired="{0}{{sample}}_1P.fq.gz".format(TRIMMED_READS_DIR),
-        forward_unpaired="{0}{{sample}}_1U.fq.gz".format(TRIMMED_READS_DIR),
-        reverse_paired="{0}{{sample}}_2P.fq.gz".format(TRIMMED_READS_DIR),
-        reverse_unpaired="{0}{{sample}}_2U.fq.gz".format(TRIMMED_READS_DIR),
-        trimlog="{0}{{sample}}.log".format(TRIMMED_READS_DIR)
+        forward_paired=FORWARD_PAIRED,
+        forward_unpaired=FORWARD_UNPAIRED,
+        reverse_paired=REVERSE_PAIRED,
+        reverse_unpaired=REVERSE_UNPAIRED,
+        trimlog=TRIMLOG
     threads:
         MAX_THREADS
     shell:
