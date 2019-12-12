@@ -173,7 +173,7 @@ rule trim:
         module load trimmomatic/0.38
         trimmomatic PE -phred33 \
         -threads {threads} \
-        {input.forward} {input.reverse} \
+        {input} \
         {output.forward_paired} {output.forward_unpaired} {output.reverse_paired} {output.reverse_unpaired} \
         -trimlog {output.trimlog} \
         LEADING:3 \
