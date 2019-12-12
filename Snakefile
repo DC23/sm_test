@@ -15,32 +15,27 @@
 # Load the configuration
 configfile: "config.yaml"
 
-def config_with_default(key, default):
-    try:
-        return config[key]
-    except KeyError:
-        return default
+# Input directory for fastq files
+FASTQ_DIR = config["fastq-dir"]
 
 # Location of temporary files
+# TODO: It looks more like the main output directory
 TMP_DIR = config["temp-dir"]
 
 # Reports directory
 REPORTS_DIR = TMP_DIR + "reports/"
 
-# Input directory for fastq files
-FASTQ_DIR = config["fastq-dir"]
+FASTQC_DIR = "{0}raw_reads/qc/".format(REPORTS_DIR)
 
 # Trimmed reads directory
 TRIMMED_READS_DIR = REPORTS_DIR + "trimmed_reads/"
 
 # Max number of threads.
 # TODO: is this needed?
-MAX_THREADS = int(config_with_default("max-threads", "1"))
+MAX_THREADS = int(config.get("max-threads", "1"))
 
 # Path to the trimmomatic jar
 TRIM_PATH = config["trim-path"]
-
-FASTQC_DIR = "{0}raw_reads/qc/".format(REPORTS_DIR)
 
 #------------------------------------------------------------------------
 # Build all the single filename wildcard patterns so we can use them multiple times
@@ -57,6 +52,12 @@ RAW_FASTQC_HTML = "{0}{{sample}}_R{{id}}_fastqc.html".format(FASTQC_DIR)
 FASTQ_FORWARD_FILE = "{0}{{sample}}_R1_fastqc.html".format(FASTQC_DIR)
 FASTQ_REVERSE_FILE = "{0}{{sample}}_R2_fastqc.html".format(FASTQC_DIR)
 
+FORWARD_PAIRED = "{0}{{sample}}_1P.fq.gz".format(TRIMMED_READS_DIR)
+FORWARD_UNPAIRED = "{0}{{sample}}_1U.fq.gz".format(TRIMMED_READS_DIR)
+REVERSE_PAIRED = "{0}{{sample}}_2P.fq.gz".format(TRIMMED_READS_DIR)
+REVERSE_UNPAIRED = "{0}{{sample}}_2U.fq.gz".format(TRIMMED_READS_DIR)
+TRIMLOG = "{0}{{sample}}.log".format(TRIMMED_READS_DIR)
+
 #------------------------------------------------------------------------
 # Build the lists of all expected output files.
 # These are written to globals to avoid duplication when the lists are used in
@@ -68,6 +69,12 @@ ids = set(ids)
 
 ALL_RAW_FASTQC_ZIP = expand(RAW_FASTQC_ZIP, sample=samples, id=ids)
 ALL_RAW_FASTQC_HTML = expand(RAW_FASTQC_HTML, sample=samples, id=ids)
+ALL_TRIMMED_FILES = \
+    expand(FORWARD_PAIRED, sample=samples) + \
+    expand(FORWARD_UNPAIRED, sample=samples) + \
+    expand(REVERSE_PAIRED, sample=samples) + \
+    expand(REVERSE_UNPAIRED, sample=samples) + \
+    expand(TRIMLOG, sample=samples)
 
 #------------------------------------------------------------------------
 
@@ -78,11 +85,8 @@ IDS = [1,2]
 PUs = ['P','U']
 
 sample = ["CA73YANXX_8_161220_BPO--000_Other_TAAGGCGA-CTCTCTAT_R_161128_SHADIL_LIB2500_M002"]#,
-#            "CA73YANXX_8_161220_BPO--000_Other_TAAGGCGA-CTCTCTAT_R_161128_SHADIL_LIB2500_M002"]
 
-#samples = {f[:-11] for f in os.listdir(".") if f.endswith("fastq.gz")}
 
-trim_path = '/apps/trimmomatic/0.38/trimmomatic-0.38.jar'
 #------------------------------------------------------------------------
 
 rule test:
@@ -97,13 +101,16 @@ rule test:
         print(ids)
         print(ALL_RAW_FASTQC_ZIP)
         print(ALL_RAW_FASTQC_HTML)
+        print()
+        print(ALL_TRIMMED_FILES)
 
 #------------------------------------------------------------------------
 
 rule all:
     input:
         ALL_RAW_FASTQC_HTML,
-        ALL_RAW_FASTQC_ZIP
+        ALL_RAW_FASTQC_ZIP,
+        ALL_TRIMMED_FILES
         #expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.zip", sample = sample, temp_loc = temp_loc, id = IDS),
         #expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.html", sample = sample, temp_loc = temp_loc, id = IDS),
         #expand("{temp_loc}/reports/trimmed_reads/qc/{sample}_{id}{pu}_fastqc.zip", temp_loc = temp_loc, sample = sample, id = IDS, pu = PUs),
@@ -136,10 +143,10 @@ rule trim:
         forward=FASTQ_FORWARD_FILE,
         reverse=FASTQ_REVERSE_FILE
     output:
-        forward_paired="{0}{{sample}}_1P.fq.gz".format(TRIMMED_READS_DIR)
-        forward_unpaired="{0}{{sample}}_1U.fq.gz".format(TRIMMED_READS_DIR)
-        reverse_paired="{0}{{sample}}_2P.fq.gz".format(TRIMMED_READS_DIR)
-        reverse_unpaired="{0}{{sample}}_2U.fq.gz".format(TRIMMED_READS_DIR)
+        forward_paired="{0}{{sample}}_1P.fq.gz".format(TRIMMED_READS_DIR),
+        forward_unpaired="{0}{{sample}}_1U.fq.gz".format(TRIMMED_READS_DIR),
+        reverse_paired="{0}{{sample}}_2P.fq.gz".format(TRIMMED_READS_DIR),
+        reverse_unpaired="{0}{{sample}}_2U.fq.gz".format(TRIMMED_READS_DIR),
         trimlog="{0}{{sample}}.log".format(TRIMMED_READS_DIR)
     threads:
         MAX_THREADS
