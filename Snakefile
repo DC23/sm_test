@@ -32,7 +32,6 @@ FASTQ_DIR = config["fastq-dir"]
 MAX_THREADS = int(config_with_default("max-threads", "1"))
 
 # Path to the trimmomatic jar
-# TODO: Is this required? Can't we just load the trimmomatic module?
 TRIM_PATH = config["trim-path"]
 
 FASTQC_DIR = "{0}reports/raw_reads/qc/".format(TMP_DIR)
@@ -43,6 +42,7 @@ FASTQC_DIR = "{0}reports/raw_reads/qc/".format(TMP_DIR)
 # Note that we need to escape the Snakemake wildcards with double curly braces
 # so that they pass through the string formatting.
 
+# TODO: Can I ditch the use of separate sample and id wildcards? They only appear to be used together anyway.
 FASTQ_FILE = "{0}{{sample}}_R{{id}}.fastq.gz".format(FASTQ_DIR)
 RAW_FASTQC_ZIP = "{0}{{sample}}_R{{id}}_fastqc.zip".format(FASTQC_DIR)
 RAW_FASTQC_HTML ="{0}{{sample}}_R{{id}}_fastqc.html".format(FASTQC_DIR)
@@ -104,37 +104,23 @@ rule all:
 rule clean:
     shell:
         """
-        rm {ALL_RAW_FASTQC_HTML}
-        rm {ALL_RAW_FASTQC_ZIP}
+        rm -rf {TMP_DIR}
+        rm -f {ALL_RAW_FASTQC_HTML}
+        rm -f {ALL_RAW_FASTQC_ZIP}
         """
 
 # A single input file, with wildcards for sample and ID
-rule fastqc_raw_single:
+rule fastqc_raw:
     input: FASTQ_FILE
     output:
         zip=RAW_FASTQC_ZIP,
         html=RAW_FASTQC_HTML
+    threads: 1  # we are only processing one file per rule execution
     shell:
         """
         module load fastqc/0.11.8
         fastqc -t {threads} {input} -o {FASTQC_DIR}
         """
-
-
-#rule fastqc_raw:
-    #input:
-        #fastq = expand("test_data/{sample}_R{id}.fastq.gz", sample = sample, id = IDS),
-    #output:
-        #zip1 = expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.zip", sample = sample, temp_loc = temp_loc, id = IDS),
-        #html1 = expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.html", sample = sample, temp_loc = temp_loc, id = IDS),
-    #threads:
-        #MAX_THREADS
-    #shell:
-        #"""
-        #module load fastqc/0.11.8
-        #mkdir -p {temp_loc}/reports/raw_reads/
-        #fastqc -t {threads} {input.fastq} -o {temp_loc}/reports/raw_reads/qc/
-        #"""
 
 rule trim:
     input:
