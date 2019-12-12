@@ -30,6 +30,9 @@ REPORTS_DIR = TMP_DIR + "reports/"
 # Input directory for fastq files
 FASTQ_DIR = config["fastq-dir"]
 
+# Trimmed reads directory
+TRIMMED_READS_DIR = REPORTS_DIR + "trimmed_reads/"
+
 # Max number of threads.
 # TODO: is this needed?
 MAX_THREADS = int(config_with_default("max-threads", "1"))
@@ -48,7 +51,11 @@ FASTQC_DIR = "{0}raw_reads/qc/".format(REPORTS_DIR)
 # TODO: Can I ditch the use of separate sample and id wildcards? They only appear to be used together anyway.
 FASTQ_FILE = "{0}{{sample}}_R{{id}}.fastq.gz".format(FASTQ_DIR)
 RAW_FASTQC_ZIP = "{0}{{sample}}_R{{id}}_fastqc.zip".format(FASTQC_DIR)
-RAW_FASTQC_HTML ="{0}{{sample}}_R{{id}}_fastqc.html".format(FASTQC_DIR)
+RAW_FASTQC_HTML = "{0}{{sample}}_R{{id}}_fastqc.html".format(FASTQC_DIR)
+
+# Patterns for forward and reverse fastq files used for the trim rule
+FASTQ_FORWARD_FILE = "{0}{{sample}}_R1_fastqc.html".format(FASTQC_DIR)
+FASTQ_REVERSE_FILE = "{0}{{sample}}_R2_fastqc.html".format(FASTQC_DIR)
 
 #------------------------------------------------------------------------
 # Build the lists of all expected output files.
@@ -126,23 +133,23 @@ rule fastqc_raw:
 
 rule trim:
     input:
-        forward = "test_data/{sample}_R1.fastq.gz",
-        reverse = "test_data/{sample}_R2.fastq.gz",
+        forward=FASTQ_FORWARD_FILE,
+        reverse=FASTQ_REVERSE_FILE
     output:
-        forward_paired = "{temp_loc}/reports/trimmed_reads/{sample}_1P.fq.gz",
-        forward_unpaired = "{temp_loc}/reports/trimmed_reads/{sample}_1U.fq.gz",
-        reverse_paired = "{temp_loc}/reports/trimmed_reads/{sample}_2P.fq.gz",
-        reverse_unpaired = "{temp_loc}/reports/trimmed_reads/{sample}_2U.fq.gz",
-        trimlog = "{temp_loc}/reports/trimmed_reads/{sample}.log",
+        forward_paired="{0}{{sample}}_1P.fq.gz".format(TRIMMED_READS_DIR)
+        forward_unpaired="{0}{{sample}}_1U.fq.gz".format(TRIMMED_READS_DIR)
+        reverse_paired="{0}{{sample}}_2P.fq.gz".format(TRIMMED_READS_DIR)
+        reverse_unpaired="{0}{{sample}}_2U.fq.gz".format(TRIMMED_READS_DIR)
+        trimlog="{0}{{sample}}.log".format(TRIMMED_READS_DIR)
     threads:
         MAX_THREADS
     shell:
         """
         module load trimmomatic/0.38
-        java -jar {trim_path} PE -phred33 \
+        java -jar {TRIM_PATH} PE -phred33 \
         {input.forward} {input.reverse} \
         {output.forward_paired} {output.forward_unpaired} {output.reverse_paired} {output.reverse_unpaired} \
-        -trimlog {temp_loc}/reports/trimmed_reads/{sample}.log \
+        -trimlog {output.trimlog} \
         LEADING:3 \
         TRAILING:3 \
         ILLUMINACLIP:TrueSeq3-PE.fa:2:30:10
