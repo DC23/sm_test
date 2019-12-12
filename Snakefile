@@ -13,7 +13,7 @@
 
 #------------------------------------------------------------------------
 # Load the configuration
-configfile: "config.yml"
+configfile: "config.yaml"
 
 def config_with_default(key, default):
     try:
