@@ -38,6 +38,9 @@ MAX_THREADS = int(config.get("max-threads", "1"))
 # Path to the trimmomatic jar
 TRIM_PATH = config["trim-path"]
 
+# Trinity working directory
+TRINITY_DIR = TRIMMED_READS_DIR + "RSEM_trinity/"
+
 #------------------------------------------------------------------------
 # Build the single filename wildcard patterns so we can use them multiple times
 # without duplication.
@@ -54,6 +57,19 @@ RAW_FASTQC_HTML = "{0}{{sample}}_R{{id}}_fastqc.html".format(FASTQC_DIR)
 # Defined here so they can be used in the rule and to build all-file lists
 TRIMMED_FASTQC_ZIP = "{0}{{sample}}_{{id}}{{pu}}_fastqc.zip".format(TRIMMED_FASTQC_DIR)
 TRIMMED_FASTQC_HTML = "{0}{{sample}}_{{id}}{{pu}}_fastqc.html".format(TRIMMED_FASTQC_DIR)
+
+#-------------------
+# trim rule patterns
+
+FORWARD_PAIRED = "{0}{{sample}}_1P.fq.gz".format(TRIMMED_READS_DIR)
+FORWARD_UNPAIRED = "{0}{{sample}}_1U.fq.gz".format(TRIMMED_READS_DIR)
+REVERSE_PAIRED = "{0}{{sample}}_2P.fq.gz".format(TRIMMED_READS_DIR)
+REVERSE_UNPAIRED = "{0}{{sample}}_2U.fq.gz".format(TRIMMED_READS_DIR)
+
+
+#-------------------
+# trinity_align rule patterns
+FA_FILE = TRINITY_DIR + "{sample}/Trinity.fasta"
 
 #------------------------------------------------------------------------
 # Build the lists of all expected output files.
@@ -74,16 +90,10 @@ ALL_TRIMMED_FASTQC_FILES = \
     expand(TRIMMED_FASTQC_ZIP, sample=samples, id=(1,2), pu=("P", "U")) + \
     expand(TRIMMED_FASTQC_HTML, sample=samples, id=(1,2), pu=("P", "U"))
 
-#------------------------------------------------------------------------
-
-# TODO - remove these once the trinity rule is rewritten
-csiro_id = "ley015"
-temp_loc = expand("/scratch1/{csiro_id}", csiro_id = csiro_id)
-IDS = [1,2]
-PUs = ['P','U']
-sample = ["CA73YANXX_8_161220_BPO--000_Other_TAAGGCGA-CTCTCTAT_R_161128_SHADIL_LIB2500_M002"]#,
+ALL_TRINITY_FILES = expand(FA_FILE, sample=samples)
 
 #------------------------------------------------------------------------
+
 
 rule test:
     run:
@@ -99,6 +109,8 @@ rule test:
         pp.pprint(ALL_RAW_FASTQC_FILES)
         print()
         pp.pprint(ALL_TRIMMED_FASTQC_FILES)
+        print()
+        pp.pprint(ALL_TRINITY_FILES)
 
 #------------------------------------------------------------------------
 
@@ -106,7 +118,7 @@ rule all:
     input:
         ALL_RAW_FASTQC_FILES
         ,ALL_TRIMMED_FASTQC_FILES
-        #expand("{temp_loc}/reports/trimmed_reads/RSEM_trinity/{sample}/Trinity.fasta", temp_loc = temp_loc, sample = sample),
+        ,ALL_TRINITY_FILES
 
 rule clean:
     shell: "rm -rf {TMP_DIR}"
@@ -127,7 +139,10 @@ rule trim:
         "{0}{{sample}}_R1.fastq.gz".format(FASTQ_DIR),
         "{0}{{sample}}_R2.fastq.gz".format(FASTQ_DIR)
     output:
-        files=expand("{path}{{sample}}_{id}{pu}.fq.gz", path=TRIMMED_READS_DIR, id=(1,2), pu=("P", "U")),
+        forward_paired=FORWARD_PAIRED,
+        forward_unpaired=FORWARD_UNPAIRED,
+        reverse_paired=REVERSE_PAIRED,
+        reverse_unpaired=REVERSE_UNPAIRED,
         trimlog="{0}{{sample}}.log".format(TRIMMED_READS_DIR)
     threads: 2  # 2 input files per call
     shell:
@@ -136,7 +151,7 @@ rule trim:
         trimmomatic PE -phred33 \
         -threads {threads} \
         {input} \
-        {output.files} \
+        {output.forward_paired} {output.forward_unpaired} {output.reverse_paired} {output.reverse_unpaired} \
         -trimlog {output.trimlog} \
         LEADING:3 \
         TRAILING:3 \
@@ -155,13 +170,20 @@ rule fastqc_trimmed:
 
 rule trinity_align:
     input:
-        left = expand("{temp_loc}/reports/trimmed_reads/{sample}_1P.fq.gz", temp_loc = temp_loc, sample = sample),
-        right = expand("{temp_loc}/reports/trimmed_reads/{sample}_2P.fq.gz", temp_loc = temp_loc, sample = sample),
-    output:
-        fa = expand("{temp_loc}/reports/trimmed_reads/RSEM_trinity/{sample}/Trinity.fasta", temp_loc = temp_loc, sample = sample),
+        left=FORWARD_PAIRED,
+        right=REVERSE_PAIRED
+    output: FA_FILE
+    threads: MAX_THREADS
     shell:
         """
         module load trinity/2.3.2
-        Trinity --seqType fq --max_memory 50G --left {input.left} --right {input.right} --output /scratch1/ley015/reports/trimmed_reads/RSEM_trinity --CPU 6
-        module unload trinity/2.3.2
+
+        # Map the insilico_read_normalization temp dir to a memory directory
+        #mkdir ${TRINITY_DIR}
+        #rm -f ${TRINITY_DIR}/insilico_read_normalization
+        #mkdir $MEMDIR/insilico_read_normalization
+        #ln -s $MEMDIR/insilico_read_normalization $OUTPUT_DIR
+
+        # Run trinity
+        Trinity --seqType fq --max_memory 50G --left {input.left} --right {input.right} --output {TRINITY_DIR} --CPU {threads}
         """

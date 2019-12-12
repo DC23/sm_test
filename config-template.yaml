@@ -3,5 +3,5 @@
 # Only a few files here
 fastq-dir: /scratch1/col52j/sm_test_data/
 temp-dir: /scratch1/col52j/sm_test/
-max-threads: 32
+max-threads: 20
 trim-path: /apps/trimmomatic/0.38/trimmomatic-0.38.jar
