@@ -29,6 +29,7 @@ FASTQC_DIR = "{0}raw_reads/qc/".format(REPORTS_DIR)
 
 # Trimmed reads directory
 TRIMMED_READS_DIR = REPORTS_DIR + "trimmed_reads/"
+TRIMMED_FASTQC_DIR = TRIMMED_READS_DIR + "qc/"
 
 # Max number of threads.
 # TODO: is this needed?
@@ -47,15 +48,27 @@ FASTQ_FILE = "{0}{{sample}}_R{{id}}.fastq.gz".format(FASTQ_DIR)
 RAW_FASTQC_ZIP = "{0}{{sample}}_R{{id}}_fastqc.zip".format(FASTQC_DIR)
 RAW_FASTQC_HTML = "{0}{{sample}}_R{{id}}_fastqc.html".format(FASTQC_DIR)
 
-# Patterns for forward and reverse fastq files used for the trim rule
+#-------------------
+# trim rule
+# input patterns
 FASTQ_FORWARD_FILE = "{0}{{sample}}_R1.fastq.gz".format(FASTQ_DIR)
 FASTQ_REVERSE_FILE = "{0}{{sample}}_R2.fastq.gz".format(FASTQ_DIR)
 
+# output patterns
 FORWARD_PAIRED = "{0}{{sample}}_1P.fq.gz".format(TRIMMED_READS_DIR)
 FORWARD_UNPAIRED = "{0}{{sample}}_1U.fq.gz".format(TRIMMED_READS_DIR)
 REVERSE_PAIRED = "{0}{{sample}}_2P.fq.gz".format(TRIMMED_READS_DIR)
 REVERSE_UNPAIRED = "{0}{{sample}}_2U.fq.gz".format(TRIMMED_READS_DIR)
 TRIMLOG = "{0}{{sample}}.log".format(TRIMMED_READS_DIR)
+
+#-------------------
+# trimqc rule
+# matches all outputs from trim rule
+TRIMMED_FILE = "{0}{{sample}}_{{id}}{{pu}}.fq.gz".format(TRIMMED_READS_DIR)
+
+# output patterns
+TRIMMED_FASTQC_ZIP = "{0}{{sample}}_{{id}}{{pu}}_fastqc.zip".format(TRIMMED_FASTQC_DIR)
+TRIMMED_FASTQC_HTML = "{0}{{sample}}_{{id}}{{pu}}_fastqc.html".format(TRIMMED_FASTQC_DIR)
 
 #------------------------------------------------------------------------
 # Build the lists of all expected output files.
@@ -69,12 +82,20 @@ ids = set(ids)
 
 ALL_RAW_FASTQC_ZIP = expand(RAW_FASTQC_ZIP, sample=samples, id=ids)
 ALL_RAW_FASTQC_HTML = expand(RAW_FASTQC_HTML, sample=samples, id=ids)
-ALL_TRIMMED_FILES = \
-    expand(FORWARD_PAIRED, sample=samples) + \
-    expand(FORWARD_UNPAIRED, sample=samples) + \
-    expand(REVERSE_PAIRED, sample=samples) + \
-    expand(REVERSE_UNPAIRED, sample=samples) + \
-    expand(TRIMLOG, sample=samples)
+ALL_RAW_FASTQC_FILES = ALL_RAW_FASTQC_ZIP + ALL_RAW_FASTQC_HTML
+
+# Don't need this, but it shows the common pattern of building the all file
+# lists from the single file patterns
+#ALL_TRIMMED_FILES = \
+    #expand(FORWARD_PAIRED, sample=samples) + \
+    #expand(FORWARD_UNPAIRED, sample=samples) + \
+    #expand(REVERSE_PAIRED, sample=samples) + \
+    #expand(REVERSE_UNPAIRED, sample=samples) + \
+    #expand(TRIMLOG, sample=samples)
+
+ALL_TRIMMED_FASTQC_FILES = \
+    expand(TRIMMED_FASTQC_ZIP, sample=samples, id=(1,2), pu=("P", "U")) + \
+    expand(TRIMMED_FASTQC_HTML, sample=samples, id=(1,2), pu=("P", "U"))
 
 #------------------------------------------------------------------------
 
@@ -99,20 +120,17 @@ rule test:
         print("RAW_FASTQC_HTML: ", RAW_FASTQC_HTML)
         print(samples)
         print(ids)
-        print(ALL_RAW_FASTQC_ZIP)
-        print(ALL_RAW_FASTQC_HTML)
+        print(ALL_RAW_FASTQC_FILES)
         print()
-        print(ALL_TRIMMED_FILES)
+        print(ALL_TRIMMED_FASTQC_FILES)
 
 #------------------------------------------------------------------------
 
 rule all:
     input:
-        ALL_RAW_FASTQC_HTML
-        ,ALL_RAW_FASTQC_ZIP
-        ,ALL_TRIMMED_FILES
-        #expand("{temp_loc}/reports/trimmed_reads/qc/{sample}_{id}{pu}_fastqc.zip", temp_loc = temp_loc, sample = sample, id = IDS, pu = PUs),
-        #expand("{temp_loc}/reports/trimmed_reads/qc/{sample}_{id}{pu}_fastqc.html", temp_loc = temp_loc, sample = sample, id = IDS, pu = PUs),
+        ALL_RAW_FASTQC_FILES
+        #,ALL_TRIMMED_FILES
+        ,ALL_TRIMMED_FASTQC_FILES
         #expand("{temp_loc}/reports/trimmed_reads/RSEM_trinity/{sample}/Trinity.fasta", temp_loc = temp_loc, sample = sample),
 
 rule clean:
@@ -136,6 +154,9 @@ rule fastqc_raw:
         fastqc -t {threads} {input} -o {FASTQC_DIR}
         """
 
+# TODO: can this rule be broken down further so that a single call
+# handles just one input file (either forward or reverse) to produce a single
+# output pair of files (paired, unpaired)?
 rule trim:
     input:
         forward=FASTQ_FORWARD_FILE,
@@ -146,7 +167,7 @@ rule trim:
         reverse_paired=REVERSE_PAIRED,
         reverse_unpaired=REVERSE_UNPAIRED,
         trimlog=TRIMLOG
-    threads: 2
+    threads: 2  # 2 input files per call
     shell:
         """
         module load trimmomatic/0.38
@@ -161,19 +182,13 @@ rule trim:
         """
 
 rule fastqc_trimmed:
-    input:
-        fq1 = expand("{temp_loc}/reports/trimmed_reads/{sample}_{id}{pu}.fq.gz", id = IDS, temp_loc = temp_loc, sample = sample, pu = PUs),
-    output:
-        zip2 = "{temp_loc}/reports/trimmed_reads/qc/{sample}_{id}{pu}_fastqc.zip",
-        html2 = "{temp_loc}/reports/trimmed_reads/qc/{sample}_{id}{pu}_fastqc.html",
-    threads:
-        4
+    input: TRIMMED_FILE
+    output: TRIMMED_FASTQC_ZIP, TRIMMED_FASTQC_HTML
+    threads: 1  # one file per execution
     shell:
         """
         module load fastqc/0.11.8
-        mkdir -p {temp_loc}/reports/trimmed_reads/qc/
-        fastqc -t 32 {input.fq1} -o {temp_loc}/reports/trimmed_reads/qc/
-        module unload fastqc/0.11.8
+        fastqc -t {threads} {input} -o {TRIMMED_FASTQC_DIR}
         """
 
 rule trinity_align:
