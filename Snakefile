@@ -25,7 +25,7 @@ TMP_DIR = config["temp-dir"]
 # Reports directory
 REPORTS_DIR = TMP_DIR + "reports/"
 
-FASTQC_DIR = "{0}raw_reads/qc/".format(REPORTS_DIR)
+FASTQC_DIR = REPORTS_DIR + "raw_reads/qc/"
 
 # Trimmed reads directory
 TRIMMED_READS_DIR = REPORTS_DIR + "trimmed_reads/"
@@ -39,34 +39,19 @@ MAX_THREADS = int(config.get("max-threads", "1"))
 TRIM_PATH = config["trim-path"]
 
 #------------------------------------------------------------------------
-# Build all the single filename wildcard patterns so we can use them multiple times
+# Build the single filename wildcard patterns so we can use them multiple times
 # without duplication.
-# Note that we need to escape the Snakemake wildcards with double curly braces
-# so that they pass through the string formatting.
 
-FASTQ_FILE = "{0}{{sample}}_R{{id}}.fastq.gz".format(FASTQ_DIR)
+# If you use string concatenation then wildcards should use single curly braces
+FASTQ_FILE = FASTQ_DIR + "{sample}_R{id}.fastq.gz"
+
+# If using string formatting, then double curly braces are needed on wildcards
 RAW_FASTQC_ZIP = "{0}{{sample}}_R{{id}}_fastqc.zip".format(FASTQC_DIR)
 RAW_FASTQC_HTML = "{0}{{sample}}_R{{id}}_fastqc.html".format(FASTQC_DIR)
 
 #-------------------
-# trim rule
-# input patterns
-FASTQ_FORWARD_FILE = "{0}{{sample}}_R1.fastq.gz".format(FASTQ_DIR)
-FASTQ_REVERSE_FILE = "{0}{{sample}}_R2.fastq.gz".format(FASTQ_DIR)
-
-# output patterns
-FORWARD_PAIRED = "{0}{{sample}}_1P.fq.gz".format(TRIMMED_READS_DIR)
-FORWARD_UNPAIRED = "{0}{{sample}}_1U.fq.gz".format(TRIMMED_READS_DIR)
-REVERSE_PAIRED = "{0}{{sample}}_2P.fq.gz".format(TRIMMED_READS_DIR)
-REVERSE_UNPAIRED = "{0}{{sample}}_2U.fq.gz".format(TRIMMED_READS_DIR)
-TRIMLOG = "{0}{{sample}}.log".format(TRIMMED_READS_DIR)
-
-#-------------------
-# trimqc rule
-# matches all outputs from trim rule
-TRIMMED_FILE = "{0}{{sample}}_{{id}}{{pu}}.fq.gz".format(TRIMMED_READS_DIR)
-
-# output patterns
+# trimqc rule output patterns
+# Defined here so they can be used in the rule and to build all-file lists
 TRIMMED_FASTQC_ZIP = "{0}{{sample}}_{{id}}{{pu}}_fastqc.zip".format(TRIMMED_FASTQC_DIR)
 TRIMMED_FASTQC_HTML = "{0}{{sample}}_{{id}}{{pu}}_fastqc.html".format(TRIMMED_FASTQC_DIR)
 
@@ -74,24 +59,16 @@ TRIMMED_FASTQC_HTML = "{0}{{sample}}_{{id}}{{pu}}_fastqc.html".format(TRIMMED_FA
 # Build the lists of all expected output files.
 # These are written to globals to avoid duplication when the lists are used in
 # multiple rules.
+# Note the common pattern of building the all-file lists from the single file patterns
 
 samples, ids = glob_wildcards(FASTQ_FILE)
 # convert to sets to remove duplication
 samples = set(samples)
 ids = set(ids)
 
-ALL_RAW_FASTQC_ZIP = expand(RAW_FASTQC_ZIP, sample=samples, id=ids)
-ALL_RAW_FASTQC_HTML = expand(RAW_FASTQC_HTML, sample=samples, id=ids)
-ALL_RAW_FASTQC_FILES = ALL_RAW_FASTQC_ZIP + ALL_RAW_FASTQC_HTML
-
-# Don't need this, but it shows the common pattern of building the all file
-# lists from the single file patterns
-#ALL_TRIMMED_FILES = \
-    #expand(FORWARD_PAIRED, sample=samples) + \
-    #expand(FORWARD_UNPAIRED, sample=samples) + \
-    #expand(REVERSE_PAIRED, sample=samples) + \
-    #expand(REVERSE_UNPAIRED, sample=samples) + \
-    #expand(TRIMLOG, sample=samples)
+ALL_RAW_FASTQC_FILES = \
+    expand(RAW_FASTQC_ZIP, sample=samples, id=ids) + \
+    expand(RAW_FASTQC_HTML, sample=samples, id=ids)
 
 ALL_TRIMMED_FASTQC_FILES = \
     expand(TRIMMED_FASTQC_ZIP, sample=samples, id=(1,2), pu=("P", "U")) + \
@@ -99,54 +76,45 @@ ALL_TRIMMED_FASTQC_FILES = \
 
 #------------------------------------------------------------------------
 
-# TODO - remove these
+# TODO - remove these once the trinity rule is rewritten
 csiro_id = "ley015"
 temp_loc = expand("/scratch1/{csiro_id}", csiro_id = csiro_id)
 IDS = [1,2]
 PUs = ['P','U']
-
 sample = ["CA73YANXX_8_161220_BPO--000_Other_TAAGGCGA-CTCTCTAT_R_161128_SHADIL_LIB2500_M002"]#,
-
 
 #------------------------------------------------------------------------
 
 rule test:
     run:
+        from pprint import PrettyPrinter
+        pp = PrettyPrinter(indent=1)
         print("TMP_DIR: {0}".format(TMP_DIR))
         print("MAX_THREADS: {0}".format(MAX_THREADS))
         print("FASTQ_DIR:", FASTQ_DIR)
         print("FASTQ_FILE: ", FASTQ_FILE)
         print("RAW_FASTQC_ZIP: ", RAW_FASTQC_ZIP)
         print("RAW_FASTQC_HTML: ", RAW_FASTQC_HTML)
-        print(samples)
-        print(ids)
-        print(ALL_RAW_FASTQC_FILES)
         print()
-        print(ALL_TRIMMED_FASTQC_FILES)
+        pp.pprint(ALL_RAW_FASTQC_FILES)
+        print()
+        pp.pprint(ALL_TRIMMED_FASTQC_FILES)
 
 #------------------------------------------------------------------------
 
 rule all:
     input:
         ALL_RAW_FASTQC_FILES
-        #,ALL_TRIMMED_FILES
         ,ALL_TRIMMED_FASTQC_FILES
         #expand("{temp_loc}/reports/trimmed_reads/RSEM_trinity/{sample}/Trinity.fasta", temp_loc = temp_loc, sample = sample),
 
 rule clean:
-    shell:
-        """
-        rm -rf {TMP_DIR}
-        rm -f {ALL_RAW_FASTQC_HTML}
-        rm -f {ALL_RAW_FASTQC_ZIP}
-        """
+    shell: "rm -rf {TMP_DIR}"
 
 # A single input file, with wildcards for sample and ID
 rule fastqc_raw:
     input: FASTQ_FILE
-    output:
-        zip=RAW_FASTQC_ZIP,
-        html=RAW_FASTQC_HTML
+    output: RAW_FASTQC_ZIP, RAW_FASTQC_HTML
     threads: 1  # we are only processing one file per rule execution
     shell:
         """
@@ -159,14 +127,14 @@ rule fastqc_raw:
 # output pair of files (paired, unpaired)?
 rule trim:
     input:
-        forward=FASTQ_FORWARD_FILE,
-        reverse=FASTQ_REVERSE_FILE
+        "{0}{{sample}}_R1.fastq.gz".format(FASTQ_DIR),
+        "{0}{{sample}}_R2.fastq.gz".format(FASTQ_DIR)
     output:
-        forward_paired=FORWARD_PAIRED,
-        forward_unpaired=FORWARD_UNPAIRED,
-        reverse_paired=REVERSE_PAIRED,
-        reverse_unpaired=REVERSE_UNPAIRED,
-        trimlog=TRIMLOG
+        forward_paired="{0}{{sample}}_1P.fq.gz".format(TRIMMED_READS_DIR),
+        forward_unpaired="{0}{{sample}}_1U.fq.gz".format(TRIMMED_READS_DIR),
+        reverse_paired="{0}{{sample}}_2P.fq.gz".format(TRIMMED_READS_DIR),
+        reverse_unpaired="{0}{{sample}}_2U.fq.gz".format(TRIMMED_READS_DIR),
+        trimlog="{0}{{sample}}.log".format(TRIMMED_READS_DIR)
     threads: 2  # 2 input files per call
     shell:
         """
@@ -182,7 +150,7 @@ rule trim:
         """
 
 rule fastqc_trimmed:
-    input: TRIMMED_FILE
+    input: "{0}{{sample}}_{{id}}{{pu}}.fq.gz".format(TRIMMED_READS_DIR)
     output: TRIMMED_FASTQC_ZIP, TRIMMED_FASTQC_HTML
     threads: 1  # one file per execution
     shell:
