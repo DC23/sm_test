@@ -24,6 +24,9 @@ def config_with_default(key, default):
 # Location of temporary files
 TMP_DIR = config["temp-dir"]
 
+# Reports directory
+REPORTS_DIR = TMP_DIR + "reports/"
+
 # Input directory for fastq files
 FASTQ_DIR = config["fastq-dir"]
 
@@ -34,7 +37,7 @@ MAX_THREADS = int(config_with_default("max-threads", "1"))
 # Path to the trimmomatic jar
 TRIM_PATH = config["trim-path"]
 
-FASTQC_DIR = "{0}reports/raw_reads/qc/".format(TMP_DIR)
+FASTQC_DIR = "{0}raw_reads/qc/".format(REPORTS_DIR)
 
 #------------------------------------------------------------------------
 # Build all the single filename wildcard patterns so we can use them multiple times
@@ -58,7 +61,6 @@ ids = set(ids)
 
 ALL_RAW_FASTQC_ZIP = expand(RAW_FASTQC_ZIP, sample=samples, id=ids)
 ALL_RAW_FASTQC_HTML = expand(RAW_FASTQC_HTML, sample=samples, id=ids)
-
 
 #------------------------------------------------------------------------
 
