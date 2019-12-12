@@ -122,18 +122,12 @@ rule fastqc_raw:
         fastqc -t {threads} {input} -o {FASTQC_DIR}
         """
 
-# TODO: can this rule be broken down further so that a single call
-# handles just one input file (either forward or reverse) to produce a single
-# output pair of files (paired, unpaired)?
 rule trim:
     input:
         "{0}{{sample}}_R1.fastq.gz".format(FASTQ_DIR),
         "{0}{{sample}}_R2.fastq.gz".format(FASTQ_DIR)
     output:
-        forward_paired="{0}{{sample}}_1P.fq.gz".format(TRIMMED_READS_DIR),
-        forward_unpaired="{0}{{sample}}_1U.fq.gz".format(TRIMMED_READS_DIR),
-        reverse_paired="{0}{{sample}}_2P.fq.gz".format(TRIMMED_READS_DIR),
-        reverse_unpaired="{0}{{sample}}_2U.fq.gz".format(TRIMMED_READS_DIR),
+        files=expand("{path}{{sample}}_{id}{pu}.fq.gz", path=TRIMMED_READS_DIR, id=(1,2), pu=("P", "U")),
         trimlog="{0}{{sample}}.log".format(TRIMMED_READS_DIR)
     threads: 2  # 2 input files per call
     shell:
@@ -142,7 +136,7 @@ rule trim:
         trimmomatic PE -phred33 \
         -threads {threads} \
         {input} \
-        {output.forward_paired} {output.forward_unpaired} {output.reverse_paired} {output.reverse_unpaired} \
+        {output.files} \
         -trimlog {output.trimlog} \
         LEADING:3 \
         TRAILING:3 \
