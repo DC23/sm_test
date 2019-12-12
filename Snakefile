@@ -118,7 +118,7 @@ rule all:
     input:
         ALL_RAW_FASTQC_FILES
         ,ALL_TRIMMED_FASTQC_FILES
-        ,ALL_TRINITY_FILES
+        #,ALL_TRINITY_FILES
 
 rule clean:
     shell: "rm -rf {TMP_DIR}"
@@ -136,6 +136,7 @@ rule fastqc_raw:
 
 rule trim:
     input:
+        # This is the FASTQ_FILE pattern, but forcing a matched pair
         "{0}{{sample}}_R1.fastq.gz".format(FASTQ_DIR),
         "{0}{{sample}}_R2.fastq.gz".format(FASTQ_DIR)
     output:
@@ -180,9 +181,9 @@ rule trinity_align:
 
         # Map the insilico_read_normalization temp dir to a memory directory
         #mkdir ${TRINITY_DIR}
-        #rm -f ${TRINITY_DIR}/insilico_read_normalization
-        #mkdir $MEMDIR/insilico_read_normalization
-        #ln -s $MEMDIR/insilico_read_normalization $OUTPUT_DIR
+        #rm -f ${TRINITY_DIR}/read_partitions
+        #mkdir $MEMDIR/read_partitions
+        #ln -s $MEMDIR/read_partitions $OUTPUT_DIR
 
         # Run trinity
         Trinity --seqType fq --max_memory 50G --left {input.left} --right {input.right} --output {TRINITY_DIR} --CPU {threads}
