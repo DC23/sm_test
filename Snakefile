@@ -48,8 +48,8 @@ RAW_FASTQC_ZIP = "{0}{{sample}}_R{{id}}_fastqc.zip".format(FASTQC_DIR)
 RAW_FASTQC_HTML = "{0}{{sample}}_R{{id}}_fastqc.html".format(FASTQC_DIR)
 
 # Patterns for forward and reverse fastq files used for the trim rule
-FASTQ_FORWARD_FILE = "{0}{{sample}}_R1_fastqc.html".format(FASTQC_DIR)
-FASTQ_REVERSE_FILE = "{0}{{sample}}_R2_fastqc.html".format(FASTQC_DIR)
+FASTQ_FORWARD_FILE = "{0}{{sample}}_R1.fastq.gz".format(FASTQ_DIR)
+FASTQ_REVERSE_FILE = "{0}{{sample}}_R2.fastq.gz".format(FASTQ_DIR)
 
 FORWARD_PAIRED = "{0}{{sample}}_1P.fq.gz".format(TRIMMED_READS_DIR)
 FORWARD_UNPAIRED = "{0}{{sample}}_1U.fq.gz".format(TRIMMED_READS_DIR)
@@ -108,11 +108,9 @@ rule test:
 
 rule all:
     input:
-        ALL_RAW_FASTQC_HTML,
-        ALL_RAW_FASTQC_ZIP,
-        ALL_TRIMMED_FILES
-        #expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.zip", sample = sample, temp_loc = temp_loc, id = IDS),
-        #expand("{temp_loc}/reports/raw_reads/qc/{sample}_R{id}_fastqc.html", sample = sample, temp_loc = temp_loc, id = IDS),
+        ALL_RAW_FASTQC_HTML
+        ,ALL_RAW_FASTQC_ZIP
+        ,ALL_TRIMMED_FILES
         #expand("{temp_loc}/reports/trimmed_reads/qc/{sample}_{id}{pu}_fastqc.zip", temp_loc = temp_loc, sample = sample, id = IDS, pu = PUs),
         #expand("{temp_loc}/reports/trimmed_reads/qc/{sample}_{id}{pu}_fastqc.html", temp_loc = temp_loc, sample = sample, id = IDS, pu = PUs),
         #expand("{temp_loc}/reports/trimmed_reads/RSEM_trinity/{sample}/Trinity.fasta", temp_loc = temp_loc, sample = sample),
@@ -148,19 +146,18 @@ rule trim:
         reverse_paired=REVERSE_PAIRED,
         reverse_unpaired=REVERSE_UNPAIRED,
         trimlog=TRIMLOG
-    threads:
-        MAX_THREADS
+    threads: 2
     shell:
         """
         module load trimmomatic/0.38
-        java -jar {TRIM_PATH} PE -phred33 \
+        trimmomatic PE -phred33 \
+        -threads {threads} \
         {input.forward} {input.reverse} \
         {output.forward_paired} {output.forward_unpaired} {output.reverse_paired} {output.reverse_unpaired} \
         -trimlog {output.trimlog} \
         LEADING:3 \
         TRAILING:3 \
         ILLUMINACLIP:TrueSeq3-PE.fa:2:30:10
-        module unload trimmomatic/0.38
         """
 
 rule fastqc_trimmed:

@@ -5,3 +5,4 @@ reports/
 test_data/
 *.log
 config.yml
+dag.png
