@@ -1,7 +1,15 @@
-# Lots of files here
+# fastq-dir is the input sample directory
 #fastq-dir: /OSM/CBR/AF_DATASCHOOL/input/2019-04-12_Transcritome
-# Only a few files here
 fastq-dir: /scratch1/col52j/sm_test_data/
-temp-dir: /scratch1/col52j/sm_test/
+
+# Output directory
+output-dir: /scratch1/col52j/sm_test/
+
+# TODO: do I need this? Or just give Trinity 20 threads in the rule and use
+# the snakemake -j argument to constrain?
+# Trinity max threads
 max-threads: 20
+
+# Path to the trimmomatic jar.
+# TODO: would be better to dynamically build from the loaded module and path
 trim-path: /apps/trimmomatic/0.38/trimmomatic-0.38.jar

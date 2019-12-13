@@ -18,12 +18,10 @@ configfile: "config.yaml"
 # Input directory for fastq files
 FASTQ_DIR = config["fastq-dir"]
 
-# Location of temporary files
-# TODO: It looks more like the main output directory
-TMP_DIR = config["temp-dir"]
+OUTPUT_DIR = config["output-dir"]
 
 # Reports directory
-REPORTS_DIR = TMP_DIR + "reports/"
+REPORTS_DIR = OUTPUT_DIR + "reports/"
 
 FASTQC_DIR = REPORTS_DIR + "raw_reads/qc/"
 
@@ -99,7 +97,7 @@ rule test:
     run:
         from pprint import PrettyPrinter
         pp = PrettyPrinter(indent=1)
-        print("TMP_DIR: {0}".format(TMP_DIR))
+        print("OUTPUT_DIR: {0}".format(OUTPUT_DIR))
         print("MAX_THREADS: {0}".format(MAX_THREADS))
         print("FASTQ_DIR:", FASTQ_DIR)
         print("FASTQ_FILE: ", FASTQ_FILE)
@@ -121,7 +119,7 @@ rule all:
         #,ALL_TRINITY_FILES
 
 rule clean:
-    shell: "rm -rf {TMP_DIR}"
+    shell: "rm -rf {OUTPUT_DIR}"
 
 # A single input file, with wildcards for sample and ID
 rule fastqc_raw:
