@@ -33,9 +33,6 @@ TRIMMED_FASTQC_DIR = TRIMMED_READS_DIR + "qc/"
 # TODO: is this needed?
 MAX_THREADS = int(config.get("max-threads", "1"))
 
-# Path to the trimmomatic jar
-TRIM_PATH = config["trim-path"]
-
 # Trinity working directory
 TRINITY_DIR = TRIMMED_READS_DIR + "RSEM_trinity/"
 

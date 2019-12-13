@@ -9,7 +9,3 @@ output-dir: /scratch1/col52j/sm_test/
 # the snakemake -j argument to constrain?
 # Trinity max threads
 max-threads: 20
-
-# Path to the trimmomatic jar.
-# TODO: would be better to dynamically build from the loaded module and path
-trim-path: /apps/trimmomatic/0.38/trimmomatic-0.38.jar
